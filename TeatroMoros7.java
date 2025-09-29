@@ -1,0 +1,395 @@
+package teatromoro;
+
+import java.util.ArrayList;
+import java.util.Scanner;
+import java.util.HashMap;
+import java.util.Map;
+
+public class TeatroMoro {
+
+    // Variables estáticas 
+    static final String NOMBRE_TEATRO = "Teatro Moro";
+    static final int CAPACIDAD_SALA = 40;
+    static int asientosDisponibles = CAPACIDAD_SALA;
+    static int asientosReservados = 0;
+    static int asientosVendidos = 0;
+    static double totalIngresos = 0;
+    static int entradasEstudiante = 0;
+    static int entradasTerceraEdad = 0;
+    static int entradasPublicoGeneral = 0;
+
+    // Clase para representar un asiento
+    static class Asiento {
+        // Variables de instancia 
+        String fila;
+        int numero;
+        String estado; // "disponible", "reservado", "vendido"
+        String categoria;
+        int edadCliente;
+        double precioBase;
+        double descuento;
+        double total;
+
+        public Asiento(String fila, int numero) {
+            this.fila = fila;
+            this.numero = numero;
+            this.estado = "disponible";
+        }
+    }
+
+    // Clase para almacenar cada entrada vendida 
+    static class Entrada {
+        String fila;
+        int asiento;
+        int edad;
+        String categoria;
+        double precioBase;
+        double descuento;
+        double total;
+
+        public Entrada(String fila, int asiento, int edad, String categoria, double precioBase, double descuento, double total) {
+            this.fila = fila;
+            this.asiento = asiento;
+            this.edad = edad;
+            this.categoria = categoria;
+            this.precioBase = precioBase;
+            this.descuento = descuento;
+            this.total = total;
+        }
+
+        @Override
+        public String toString() {
+            return "Fila: " + fila + ", Asiento: " + asiento + ", Categoria: " + categoria +
+                    ", Costo Base: $" + String.format("%.2f", precioBase) +
+                    ", Descuento Aplicado: $" + String.format("%.2f", descuento) +
+                    ", Costo Final: $" + String.format("%.2f", total);
+        }
+    }
+
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+
+    
+        String[][] tarifas = {
+                {"VIP", "20000", "35000"},
+                {"PLATEA BAJA", "15000", "25000"},
+                {"PLATEA ALTA", "10000", "15000"},
+                {"PALCO", "5000", "11000"}
+        };
+
+        Map<String, Asiento> asientos = inicializarAsientos();
+
+        ArrayList<Entrada> entradasVendidas = new ArrayList<>();
+
+        while (true) {
+            System.out.println("\n--- TEATRO MORO: MENU PRINCIPAL ---");
+            System.out.println("1. Reservar asiento");
+            System.out.println("2. Modificar reserva");
+            System.out.println("3. Comprar entradas (Venta de entradas)");
+            System.out.println("4. Visualizar resumen de ventas e ingresos");
+            System.out.println("5. Imprimir boleta de la ultima compra");
+            System.out.println("6. Salir del Programa");
+            System.out.print("Ingrese una opcion: ");
+            String op = sc.nextLine().trim();
+
+            if (op.equals("1")) {
+                reservarAsiento(sc, asientos, tarifas);
+            } else if (op.equals("2")) {
+                modificarReserva(sc, asientos, tarifas);
+            } else if (op.equals("3")) {
+                comprarEntradas(sc, asientos, tarifas, entradasVendidas);
+            } else if (op.equals("4")) {
+                visualizarResumen(entradasVendidas); // Nuevo método para B) y D)
+            } else if (op.equals("5")) {
+                imprimirBoleta(entradasVendidas);
+            } else if (op.equals("6")) {
+                System.out.println("Gracias por su compra."); // Mensaje de salida solicitado
+                break;
+            } else {
+                System.out.println("Opcion invalida. Intente de nuevo.");
+            }
+        }
+    }
+
+    // Inicializa todos los asientos
+    public static Map<String, Asiento> inicializarAsientos() {
+        Map<String, Asiento> asientos = new HashMap<>();
+        String[] filas = {"A", "B", "C", "D"};
+        for (String fila : filas) {
+            for (int i = 1; i <= 10; i++) {
+                asientos.put(fila + i, new Asiento(fila, i));
+            }
+        }
+        return asientos;
+    }
+
+    // MÉTODOS
+    public static void mostrarAsientos(Map<String, Asiento> asientos) {
+        System.out.println("\nLeyenda: [ ] Libre | [R] Reservado | [X] Vendido");
+        String[] filas = {"A", "B", "C", "D"};
+        for (String fila : filas) {
+            System.out.print(fila + ": ");
+            for (int i = 1; i <= 10; i++) {
+                String clave = fila + i;
+                Asiento a = asientos.get(clave);
+                String estadoSimbolo = " ";
+                if (a.estado.equals("reservado")) {
+                    estadoSimbolo = "R";
+                } else if (a.estado.equals("vendido")) {
+                    estadoSimbolo = "X";
+                }
+                System.out.print(fila + i + "[" + estadoSimbolo + "] ");
+            }
+            System.out.println();
+        }
+    }
+
+    public static Asiento buscarAsiento(Map<String, Asiento> asientos, String clave) {
+        return asientos.get(clave.toUpperCase());
+    }
+
+    public static void reservarAsiento(Scanner sc, Map<String, Asiento> asientos, String[][] tarifas) {
+        mostrarAsientos(asientos);
+        System.out.print("Ingrese asiento a reservar (ej: A1): ");
+        // Variable local 'sel'
+        String sel = sc.nextLine().trim();
+        Asiento asiento = buscarAsiento(asientos, sel);
+
+        if (asiento == null) {
+            System.out.println("Asiento no existe.");
+            return;
+        }
+
+        if (!asiento.estado.equals("disponible")) {
+            System.out.println("Asiento " + sel + " no esta disponible.");
+            return;
+        }
+
+        System.out.print("Ingrese su edad: ");
+        // Variable local 'edad'
+        int edad;
+        try {
+            edad = Integer.parseInt(sc.nextLine().trim());
+        } catch (Exception e) {
+            System.out.println("Edad invalida.");
+            return;
+        }
+
+        // Simular el cálculo de precio y categoría para la reserva
+        calcularPrecioCategoria(asiento, edad, 1, tarifas);
+        asiento.estado = "reservado";
+        asientosReservados++;
+        asientosDisponibles--;
+        System.out.println("Asiento " + sel + " reservado con exito.");
+    }
+
+    public static void modificarReserva(Scanner sc, Map<String, Asiento> asientos, String[][] tarifas) {
+        mostrarAsientos(asientos);
+        System.out.print("Ingrese el asiento reservado a modificar (ej: A1): ");
+        // Variable local 'sel'
+        String sel = sc.nextLine().trim();
+        Asiento asientoOriginal = buscarAsiento(asientos, sel);
+
+        if (asientoOriginal == null || !asientoOriginal.estado.equals("reservado")) {
+            System.out.println("Asiento " + sel + " no es una reserva valida.");
+            return;
+        }
+
+        System.out.print("Desea cambiar de asiento? (S/N): ");
+        if (sc.nextLine().trim().equalsIgnoreCase("S")) {
+            System.out.print("Ingrese el nuevo asiento (ej: B2): ");
+            // Variable local 'nuevoSel'
+            String nuevoSel = sc.nextLine().trim();
+            Asiento nuevoAsiento = buscarAsiento(asientos, nuevoSel);
+
+            if (nuevoAsiento == null || !nuevoAsiento.estado.equals("disponible")) {
+                System.out.println("Nuevo asiento " + nuevoSel + " no esta disponible o no existe.");
+                return;
+            }
+
+            // Mueve la información de la reserva
+            nuevoAsiento.edadCliente = asientoOriginal.edadCliente;
+            nuevoAsiento.categoria = asientoOriginal.categoria;
+            nuevoAsiento.precioBase = asientoOriginal.precioBase;
+            nuevoAsiento.descuento = asientoOriginal.descuento;
+            nuevoAsiento.total = asientoOriginal.total;
+            nuevoAsiento.estado = "reservado";
+
+            // Libera el asiento original
+            asientoOriginal.estado = "disponible";
+            asientoOriginal.edadCliente = 0;
+            System.out.println("Reserva de asiento " + sel + " cambiada a " + nuevoSel + " con exito.");
+        }
+    }
+
+    public static void comprarEntradas(Scanner sc, Map<String, Asiento> asientos, String[][] tarifas, ArrayList<Entrada> entradasVendidas) {
+        mostrarAsientos(asientos);
+        System.out.print("Ingrese el o los asientos a comprar, separados por coma (ej: A1,B2): ");
+        // Variable local 'seleccion'
+        String[] seleccion = sc.nextLine().trim().split(",");
+        // Variable local 'aComprar'
+        ArrayList<Asiento> aComprar = new ArrayList<>();
+        // Variable local 'totalCompra'
+        double totalCompra = 0;
+
+        for (String sel : seleccion) {
+            Asiento a = buscarAsiento(asientos, sel.trim());
+            if (a == null || (!a.estado.equals("disponible") && !a.estado.equals("reservado"))) {
+                System.out.println("Asiento " + sel.trim() + " no esta disponible. Compra cancelada.");
+                return;
+            }
+            aComprar.add(a);
+        }
+
+        System.out.print("Ingrese la edad de los clientes (separadas por coma si son mas de uno): ");
+        String[] edadesStr = sc.nextLine().trim().split(",");
+        if (edadesStr.length != aComprar.size()) {
+            System.out.println("El numero de edades no coincide con el de asientos. Compra cancelada.");
+            return;
+        }
+        int[] edades = new int[edadesStr.length];
+        try {
+            for (int i = 0; i < edadesStr.length; i++) {
+                edades[i] = Integer.parseInt(edadesStr[i].trim());
+            }
+        } catch (NumberFormatException e) {
+            System.out.println("Edades invalidas. Compra cancelada.");
+            return;
+        }
+
+        for (int i = 0; i < aComprar.size(); i++) {
+            Asiento a = aComprar.get(i);
+            // Variable local 'edad'
+            int edad = edades[i];
+            calcularPrecioCategoria(a, edad, seleccion.length, tarifas);
+            totalCompra += a.total;
+
+            a.estado = "vendido";
+            asientosDisponibles--;
+            asientosVendidos++;
+            totalIngresos += a.total;
+            
+            // Almacenar la información de la venta en una lista (ArrayList<Entrada>)
+            entradasVendidas.add(new Entrada(a.fila, a.numero, edad, a.categoria, a.precioBase, a.descuento, a.total));
+        }
+
+        System.out.println("\n--- RESUMEN COMPRA ---");
+        for (Asiento a : aComprar) {
+            System.out.println("Fila: " + a.fila + ", Asiento: " + a.numero + ", Categoria: " + a.categoria +
+                               ", Precio Base: $" + String.format("%.2f", a.precioBase) + ", Descuento: $" + String.format("%.2f", a.descuento) + ", Total: $" + String.format("%.2f", a.total));
+        }
+        System.out.println("TOTAL A PAGAR: $" + String.format("%.2f", totalCompra));
+        System.out.println("Compra realizada con exito.");
+    }
+    
+    
+     
+     //Visualizar resumen de ventas y Calcular Ingresos Totales
+     
+    public static void visualizarResumen(ArrayList<Entrada> entradasVendidas) {
+        if (entradasVendidas.isEmpty()) {
+            System.out.println("\n--- RESUMEN DE VENTAS ---");
+            System.out.println("No se han realizado ventas aún.");
+            return;
+        }
+
+        System.out.println("\n--- RESUMEN DE VENTAS ---");
+        // Mostrar resumen de todas las ventas (Requisito B)
+        System.out.println("Detalle de entradas vendidas:");
+        for(Entrada e : entradasVendidas) {
+            System.out.println(e);
+        }
+
+        // Calcular y mostrar los ingresos totales 
+        System.out.println("\n--- ESTADÍSTICAS GLOBALES ---");
+        System.out.println("Total de entradas vendidas: " + asientosVendidos);
+        System.out.println("Ingresos Totales Acumulados: $" + String.format("%.2f", totalIngresos));
+        System.out.println("Entradas Estudiante: " + entradasEstudiante);
+        System.out.println("Entradas Tercera Edad: " + entradasTerceraEdad);
+        System.out.println("Entradas Público General: " + entradasPublicoGeneral);
+    }
+
+    
+    //Generar boleta
+     
+    public static void imprimirBoleta(ArrayList<Entrada> entradasVendidas) {
+        if (entradasVendidas.isEmpty()) {
+            System.out.println("No hay entradas vendidas para generar boleta.");
+            return;
+        }
+
+        // Obtiene la última entrada de la lista
+        Entrada entradaBoleta = entradasVendidas.get(entradasVendidas.size() - 1);
+
+        System.out.println("\n------------------------------------");
+        System.out.println("         " + NOMBRE_TEATRO);
+        System.out.println("            BOLETA");
+        System.out.println("------------------------------------");
+        System.out.println("Fila: " + entradaBoleta.fila);
+        System.out.println("Asiento: " + entradaBoleta.asiento);
+        System.out.println("Ubicacion: " + entradaBoleta.fila + entradaBoleta.asiento); // Ubicación
+        System.out.println("Categoria: " + entradaBoleta.categoria);
+        System.out.println("Costo Base: $" + String.format("%.2f", entradaBoleta.precioBase));
+        System.out.println("Descuento Aplicado: $" + String.format("%.2f", entradaBoleta.descuento));
+        System.out.println("Costo Final: $" + String.format("%.2f", entradaBoleta.total));
+        System.out.println("------------------------------------");
+        System.out.println("¡Agradecemos su preferencia! Disfrute la función.");
+        System.out.println("------------------------------------");
+    }
+
+    public static void calcularPrecioCategoria(Asiento asiento, int edad, int cantidad, String[][] tarifas) {
+        // Variable local 'pos'
+        int pos = -1;
+        if (asiento.fila.equals("A")) {
+            pos = 0;
+        } else if (asiento.fila.equals("B")) {
+            pos = 1;
+        } else if (asiento.fila.equals("C")) {
+            pos = 2;
+        } else if (asiento.fila.equals("D")) {
+            pos = 3;
+        }
+
+        if (pos == -1) {
+            asiento.precioBase = 0;
+            asiento.descuento = 0;
+            asiento.total = 0;
+            asiento.categoria = "Error";
+            return;
+        }
+        
+        asiento.edadCliente = edad;
+        asiento.precioBase = Double.parseDouble(tarifas[pos][2]); // Precio General por defecto
+        // Variables locales 'descuentoTemporal'
+        double descuentoTemporal = 0;
+        
+        asiento.descuento = 0;
+        asiento.categoria = "Publico General";
+
+        // Aplicar estructuras condicionales para determinar descuentos
+        if (edad < 18) {
+            // Descuento del 10% para estudiante
+            asiento.precioBase = Double.parseDouble(tarifas[pos][1]); // Asignar precio Estudiante
+            descuentoTemporal = asiento.precioBase * 0.10;
+            asiento.categoria = "Estudiante";
+            entradasEstudiante++;
+        } else if (edad >= 60) {
+            // Descuento del 15% para tercera edad
+            descuentoTemporal = asiento.precioBase * 0.15;
+            asiento.categoria = "Tercera Edad";
+            entradasTerceraEdad++;
+        } else {
+            entradasPublicoGeneral++;
+        }
+
+        if (cantidad >= 3) {
+            // Descuento adicional por compra múltiple (ya estaba, se mantiene)
+            descuentoTemporal += asiento.precioBase * 0.05;
+        }
+        
+        asiento.descuento = descuentoTemporal;
+        // Variable local 'costoFinal'
+        double costoFinal = asiento.precioBase - asiento.descuento;
+        asiento.total = costoFinal;
+    }
+}
